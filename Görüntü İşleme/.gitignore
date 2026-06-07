@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Large datasets and generated outputs
+data/
+outputs/
+runs/
+wandb/
+
+# Videos, archives, and temporary downloads
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.webm
+*.zip
+*.rar
+*.7z
+*.download
+
+# Model weights: keep only the trained demo model in this GitHub folder
+*.pt
+!models/best.pt
+
+# Reports and old project archives stay outside this GitHub folder
+*rapor*/
+raporlar*/
+archive/
+old/
+eski/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
