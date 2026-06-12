@@ -20,8 +20,6 @@ uyp-p8-iot/
 │   └── sensor_simulator.py     ← İnteraktif menülü sensör simülatörü
 ├── subscriber/
 │   └── mqtt_subscriber.py      ← MQTT dinleyici + Supabase DB yazıcı
-├── load_test/
-│   └── load_test.py            ← 3 senaryolu yük testi motoru
 └── logs/                       ← Test çıktıları
 ```
 
