@@ -1,0 +1,96 @@
+EKO-ÜRETİM Yük Testi | 2026-05-17 15:53:27 UTC
+Broker: 681d7de6bf514275a960490227a9a4ff.s1.eu.hivemq.cloud
+Log   : C:\Users\gorke\OneDrive\Masaüstü\uyp-p8-iot\load_test\..\logs\loadtest_ALL_20260517_155327.txt
+
+
+>>> Tek zone, normal hız (5s)
+
+════════════════════════════════════════════════════════════
+  SENARYO A
+════════════════════════════════════════════════════════════
+  Zone sayısı  : 1 (zone1)
+  Gönderim aralığı : 5.0s
+  Test süresi  : 60s
+  Başlangıç    : 15:53:27 UTC
+────────────────────────────────────────────────────────────
+
+  Zone Bazlı Sonuçlar:
+  Zone         Gönderilen    Başarısız    Ort. Lat.   Max Lat.
+  ──────────────────────────────────────────────────────────
+  zone1                72            0     235.5 ms   456.4 ms
+  ──────────────────────────────────────────────────────────
+
+  TOPLAM ÖZET — Senaryo A
+  Toplam gönderilen  : 72
+  Toplam başarısız   : 0
+  Global min latency : 65.48 ms
+  Global max latency : 456.37 ms
+  Global ortalama    : 235.46 ms
+  Global medyan      : 236.80 ms
+  Std sapma          : 117.06 ms
+  Başarı oranı       : %100.0
+
+  Sonraki senaryo için 5s bekleniyor...
+
+>>> 3 zone, normal hız (5s)
+
+════════════════════════════════════════════════════════════
+  SENARYO B
+════════════════════════════════════════════════════════════
+  Zone sayısı  : 3 (zone1, zone2, zone3)
+  Gönderim aralığı : 5.0s
+  Test süresi  : 60s
+  Başlangıç    : 15:54:37 UTC
+────────────────────────────────────────────────────────────
+
+  Zone Bazlı Sonuçlar:
+  Zone         Gönderilen    Başarısız    Ort. Lat.   Max Lat.
+  ──────────────────────────────────────────────────────────
+  zone3                72            0     242.4 ms   473.8 ms
+  zone2                72            0     240.4 ms   463.9 ms
+  zone1                72            0     243.5 ms   469.4 ms
+  ──────────────────────────────────────────────────────────
+
+  TOPLAM ÖZET — Senaryo B
+  Toplam gönderilen  : 216
+  Toplam başarısız   : 0
+  Global min latency : 66.10 ms
+  Global max latency : 473.82 ms
+  Global ortalama    : 242.09 ms
+  Global medyan      : 266.54 ms
+  Std sapma          : 119.67 ms
+  Başarı oranı       : %100.0
+
+  Sonraki senaryo için 5s bekleniyor...
+
+>>> 3 zone, yüksek hız (0.5s)
+
+════════════════════════════════════════════════════════════
+  SENARYO C
+════════════════════════════════════════════════════════════
+  Zone sayısı  : 3 (zone1, zone2, zone3)
+  Gönderim aralığı : 0.5s
+  Test süresi  : 60s
+  Başlangıç    : 15:55:47 UTC
+────────────────────────────────────────────────────────────
+
+  Zone Bazlı Sonuçlar:
+  Zone         Gönderilen    Başarısız    Ort. Lat.   Max Lat.
+  ──────────────────────────────────────────────────────────
+  zone2               390            0     249.1 ms   485.3 ms
+  zone3               390            0     253.1 ms   488.8 ms
+  zone1               396            0     244.2 ms   624.6 ms
+  ──────────────────────────────────────────────────────────
+
+  TOPLAM ÖZET — Senaryo C
+  Toplam gönderilen  : 1176
+  Toplam başarısız   : 0
+  Global min latency : 66.45 ms
+  Global max latency : 624.57 ms
+  Global ortalama    : 248.78 ms
+  Global medyan      : 268.34 ms
+  Std sapma          : 122.92 ms
+  Başarı oranı       : %100.0
+
+
+Tüm testler tamamlandı. Sonuç dosyası: C:\Users\gorke\OneDrive\Masaüstü\uyp-p8-iot\load_test\..\logs\loadtest_ALL_20260517_155327.txt
