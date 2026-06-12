@@ -4,10 +4,10 @@
 # Diğer tüm dosyalar buradan import eder.
 
 # HiveMQ Cloud bağlantı bilgileri
-BROKER_HOST = "681d7de6bf514275a960490227a9a4ff.s1.eu.hivemq.cloud"
+BROKER_HOST = "your-cluster.s1.eu.hivemq.cloud"
 BROKER_PORT = 8883
-MQTT_USER = "YOUR_NAME"
-MQTT_PASS = "YOUR_PASSWORD"
+MQTT_USER   = "your_username"
+MQTT_PASS   = "your_password"
 
 # Sistemdeki zone'lar fiziksel bölümler (her biri bir raf/bölümü temsil eder)
 ZONES = ["zone1", "zone2", "zone3"]
@@ -150,5 +150,5 @@ GROWTH_STAGES = [
 DB_HOST = "aws-0-eu-west-1.pooler.supabase.com"
 DB_PORT = 5432
 DB_NAME = "postgres"
-DB_USER = "YOUR_NAME"
-DB_PASS = "YOUR_PASSWORD"
+DB_USER = "postgres.your_project_id"
+DB_PASS = "your_db_password"
