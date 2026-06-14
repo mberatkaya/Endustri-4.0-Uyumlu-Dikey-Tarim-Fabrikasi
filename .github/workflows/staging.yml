@@ -1,0 +1,114 @@
+name: Staging Validation
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: staging-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dashboard-flow:
+    name: Temporary MQTT and Dashboard E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PANEL_DATA_MODE: fake
+      PREDICTION_MODE: fake
+      FAKE_PREDICTION_DAYS: "12"
+      MQTT_TEST_HOST: 127.0.0.1
+      MQTT_TEST_PORT: "1883"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            requirements-dev.txt
+            iot-bulut-mimarisi/requirements.txt
+            projeuyp/requirements.txt
+      - name: Install staging dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+          python -m pip install -r iot-bulut-mimarisi/requirements.txt
+          python -m pip install -r projeuyp/requirements.txt
+          playwright install --with-deps chromium
+      - name: Start temporary MQTT broker
+        run: |
+          printf 'listener 1883 0.0.0.0\nallow_anonymous true\n' > /tmp/mosquitto.conf
+          docker run --detach \
+            --name staging-mqtt \
+            --publish 1883:1883 \
+            --volume /tmp/mosquitto.conf:/mosquitto/config/mosquitto.conf \
+            eclipse-mosquitto:2
+      - name: Start Streamlit staging process
+        run: |
+          mkdir -p reports
+          streamlit run projeuyp/app.py \
+            --server.headless true \
+            --server.address 127.0.0.1 \
+            --server.port 8501 \
+            > reports/streamlit.log 2>&1 &
+          echo $! > /tmp/streamlit.pid
+      - name: Wait for staging health check
+        run: |
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:8501/_stcore/health; then
+              exit 0
+            fi
+            echo "Streamlit bekleniyor: ${attempt}/30"
+            sleep 2
+          done
+          cat reports/streamlit.log
+          exit 1
+      - name: Run dashboard and MQTT E2E tests
+        run: |
+          pytest \
+            tests/e2e/test_dashboard_journey.py \
+            tests/e2e/test_mqtt_broker.py \
+            --browser chromium \
+            --junitxml=reports/staging-junit.xml
+      - name: Upload staging reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-dashboard-reports
+          path: reports/
+
+  yolo-smoke:
+    name: Trained YOLO CPU Smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      RUN_YOLO_SMOKE: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: Görüntü İşleme/requirements.txt
+      - name: Install YOLO dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+          python -m pip install -r "Görüntü İşleme/requirements.txt"
+      - name: Run trained model smoke test
+        run: |
+          mkdir -p reports
+          pytest tests/e2e/test_yolo_smoke.py \
+            --junitxml=reports/yolo-junit.xml
+      - name: Upload YOLO report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-yolo-report
+          path: reports/

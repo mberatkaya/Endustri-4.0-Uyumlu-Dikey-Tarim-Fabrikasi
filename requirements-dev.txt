@@ -1,0 +1,9 @@
+pytest>=8.3,<9
+pytest-cov>=6,<8
+pytest-mock>=3.14,<4
+pytest-playwright>=0.6,<1
+
+black==24.10.0
+isort==5.13.2
+flake8==7.1.1
+pre-commit==4.0.1
