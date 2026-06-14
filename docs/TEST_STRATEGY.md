@@ -4,8 +4,8 @@
 
 Bu strateji sensör verisinin üretilmesinden panelde gösterilmesine kadar yazılım
 bileşenlerinin doğrulanmasını ve hatalı kodun `main` branch'ine alınmamasını amaçlar.
-Gerçek DB ve API henüz teslim edilmediğinden ilgili testler fake adaptörlerle çalışır ve
-gerçek entegrasyon kanıtı sayılmaz.
+SQL Server şeması repoda bulunur; ancak CI'da gerçek veritabanı servisi açılmadığından
+store ve şema testleri fake adaptörlerle çalışır ve canlı entegrasyon kanıtı sayılmaz.
 
 ## Test Türleri
 
@@ -14,7 +14,8 @@ gerçek entegrasyon kanıtı sayılmaz.
 Tek bir fonksiyon veya sınıfın dış servislere bağlanmadan doğrulanmasıdır.
 
 - Sensör evresi, fiziksel değer sınırları, alarm ve MQTT topic üretimi
-- Subscriber payload doğrulaması ve SQL parametreleri
+- Subscriber payload doğrulaması, PostgreSQL ve SQL Server store parametreleri
+- `DikeyTarimSQL` dosya sırası, normalize şema, altı evre, procedure ve trigger sözleşmesi
 - Panel sensör/tahmin sağlayıcıları
 - XGBoost feature engineering, eğitim ve metrik hesaplama
 - YOLO tahmin fonksiyonunun model mock'u ile çağrılması
@@ -24,12 +25,12 @@ Tek bir fonksiyon veya sınıfın dış servislere bağlanmadan doğrulanmasıd�
 
 Birden fazla gerçek proje modülünün kontrollü fake bağımlılıkla birlikte çalışmasıdır.
 
-- `Plant.measure → publish → process_message → fake DB cursor`
+- `Plant.measure → publish → process_message → PostgreSQL/SQL Server store → fake DB cursor`
 - `FakeSensorDataProvider → DeterministicPredictionProvider`
 
-Bu testlerde MQTT publish fonksiyonu, subscriber ve SQL üretimi gerçek koddur. Broker ve
-PostgreSQL bağlantısı fake olduğu için sonuç "gerçek DB entegrasyonu geçti" şeklinde
-raporlanmaz.
+Bu testlerde MQTT publish fonksiyonu, subscriber, transaction yönetimi ve SQL üretimi
+gerçek koddur. Veritabanı bağlantısı fake olduğu için sonuç "gerçek DB entegrasyonu
+geçti" şeklinde raporlanmaz.
 
 ### E2E ve Staging Testi
 
@@ -50,14 +51,16 @@ Bu workflow kalıcı bir bulut staging deployment değildir.
 | --- | --- | --- |
 | Sensör çekirdeği | Gün sınırları doğru evreye eşlenir; altı sensör üretilir; değerler fiziksel sınırdadır | `tests/unit/test_iot_simulator.py` |
 | MQTT yayın | Normal veri QoS 1 ile doğru topic'e, alarm QoS 2 ile alarm topic'ine gider | Unit ve entegrasyon testleri |
-| Subscriber | Eksik/geçersiz payload reddedilir; measurement ve alarm SQL parametreleri doğru hazırlanır | `test_mqtt_subscriber.py` |
-| DB adaptörü | Fake cursor üzerinden transaction ve parametre sözleşmesi doğrulanır | `test_sensor_to_db_flow.py` |
+| Subscriber | Eksik/geçersiz payload reddedilir; doğrulanmış veri seçili store'a iletilir | `test_mqtt_subscriber.py` |
+| DB adaptörleri | PostgreSQL tek transaction kullanır; SQL Server procedure çağırır; hatalar rollback edilir | `test_sensor_store.py` |
+| SQL Server şeması | Dosya sırası, normalize sensör modeli, altı evre, view/procedure/trigger sözleşmesi korunur | `test_dikey_tarim_sql.py` |
+| Sensör → DB | Aynı MQTT payload'ı iki backend'in fake bağlantısına doğru parametrelerle ulaşır | `test_sensor_to_db_flow.py` |
 | XGBoost | Lag/rolling feature'lar bitki bazında hesaplanır; gerçek XGBoost modeli eğitilip tahmin yapar | `test_xgboost_model.py` |
 | Panel servisleri | Negatif/aşırı günler clamp edilir; fake veri deterministiktir; model sütun sırası sabittir | `test_dashboard_services.py` |
 | Streamlit panel | Giriş ekranı çalışır; staging'de üretim başlatılır ve tahmin görünür | AppTest ve Playwright |
 | YOLO | Mock model çağrı sözleşmesi geçer; staging'de `best.pt` CPU inference üretir | Unit test ve staging smoke |
 
-Gerçek DB/API teslim edildiğinde ek kabul kriterleri:
+Gerçek DB ortamı/API hazır olduğunda ek kabul kriterleri:
 
 - Test verisi gerçek test şemasına yazılmalı ve aynı kimlikle geri okunmalıdır.
 - API yanıt şeması panel sağlayıcısının yedi sensör alanını sağlamalıdır.
@@ -81,6 +84,7 @@ Coverage kapsamı framework/CLI gövdeleri yerine şu iş kuralı modülleridir:
 ```text
 simulator.sensor_core
 subscriber.message_processor
+subscriber.sensor_store
 projeuyp.services
 harvest_model
 ```

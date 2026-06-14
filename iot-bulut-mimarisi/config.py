@@ -148,9 +148,22 @@ GROWTH_STAGES = [
     },
 ]
 
-# Supabase bağlantı bilgileri.
+# Veritabanı backend'i. Varsayılan mevcut Supabase/PostgreSQL akışıdır.
+DB_ENGINE = os.getenv("DB_ENGINE", "postgres").lower()
+
+# Supabase/PostgreSQL bağlantı bilgileri.
 DB_HOST = os.getenv("DB_HOST", "aws-0-eu-west-1.pooler.supabase.com")
 DB_PORT = int(os.getenv("DB_PORT", "5432"))
 DB_NAME = os.getenv("DB_NAME", "postgres")
 DB_USER = os.getenv("DB_USER", "postgres.your_project_id")
 DB_PASS = os.getenv("DB_PASS", "your_db_password")
+
+# Microsoft SQL Server bağlantı bilgileri.
+SQLSERVER_CONNECTION_STRING = os.getenv("SQLSERVER_CONNECTION_STRING", "")
+SQLSERVER_HOST = os.getenv("SQLSERVER_HOST", "localhost")
+SQLSERVER_PORT = int(os.getenv("SQLSERVER_PORT", "1433"))
+SQLSERVER_DATABASE = os.getenv("SQLSERVER_DATABASE", "DikeyTarimDB")
+SQLSERVER_USER = os.getenv("SQLSERVER_USER", "sa")
+SQLSERVER_PASSWORD = os.getenv("SQLSERVER_PASSWORD", "your_sqlserver_password")
+SQLSERVER_ENCRYPT = os.getenv("SQLSERVER_ENCRYPT", "yes")
+SQLSERVER_TRUST_CERTIFICATE = os.getenv("SQLSERVER_TRUST_CERTIFICATE", "no")

@@ -1,0 +1,5 @@
+CREATE DATABASE DikeyTarimDB;
+GO
+
+USE DikeyTarimDB;
+GO
