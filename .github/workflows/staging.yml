@@ -25,8 +25,8 @@ jobs:
       MQTT_TEST_HOST: 127.0.0.1
       MQTT_TEST_PORT: "1883"
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
           cache: pip
@@ -78,7 +78,7 @@ jobs:
             --junitxml=reports/staging-junit.xml
       - name: Upload staging reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: staging-dashboard-reports
           path: reports/
@@ -90,8 +90,8 @@ jobs:
     env:
       RUN_YOLO_SMOKE: "1"
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
           cache: pip
@@ -108,7 +108,7 @@ jobs:
             --junitxml=reports/yolo-junit.xml
       - name: Upload YOLO report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: staging-yolo-report
           path: reports/
