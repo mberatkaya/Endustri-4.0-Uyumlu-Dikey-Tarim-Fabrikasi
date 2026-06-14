@@ -8,7 +8,6 @@ import cv2
 import numpy as np
 import yaml
 
-
 ROOT = Path(__file__).resolve().parents[1]
 PLANTSEG_ROOT = ROOT / "data" / "plantseg" / "plantseg"
 OUTPUT_ROOT = ROOT / "data" / "plantseg_yolo"
@@ -34,7 +33,9 @@ def find_image(dataset_root: Path, split: str, stem: str) -> Path:
     raise FileNotFoundError(f"Gorsel bulunamadi: {image_dir / stem}")
 
 
-def contour_to_yolo_line(contour: np.ndarray, width: int, height: int, epsilon: float) -> str | None:
+def contour_to_yolo_line(
+    contour: np.ndarray, width: int, height: int, epsilon: float
+) -> str | None:
     simplified = cv2.approxPolyDP(contour, epsilon * cv2.arcLength(contour, True), True)
     points = simplified.reshape(-1, 2)
     if len(points) < 3:
@@ -96,11 +97,15 @@ def convert_plantseg_to_yolo(
     overwrite: bool,
 ) -> None:
     if paths_overlap(plantseg_root, output_root):
-        raise ValueError("Cikti klasoru orijinal PlantSeg klasoruyle ayni yerde veya onun icinde olamaz.")
+        raise ValueError(
+            "Cikti klasoru orijinal PlantSeg klasoruyle ayni yerde veya onun icinde olamaz."
+        )
 
     if output_root.exists():
         if not overwrite:
-            raise FileExistsError(f"Cikti klasoru zaten var: {output_root}\nYeniden olusturmak icin --overwrite ekle.")
+            raise FileExistsError(
+                f"Cikti klasoru zaten var: {output_root}\nYeniden olusturmak icin --overwrite ekle."
+            )
         shutil.rmtree(output_root)
 
     print("PlantSeg -> YOLO donusumu basladi.")
@@ -133,12 +138,24 @@ def convert_plantseg_to_yolo(
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="PlantSeg maskelerini YOLO segmentation formatina cevir.")
-    parser.add_argument("--plantseg", type=Path, default=PLANTSEG_ROOT, help="Orijinal PlantSeg klasoru.")
-    parser.add_argument("--output", type=Path, default=OUTPUT_ROOT, help="Olusturulacak YOLO veri seti klasoru.")
-    parser.add_argument("--min-area", type=float, default=10.0, help="Cok kucuk konturlari elemek icin alan esigi.")
-    parser.add_argument("--epsilon", type=float, default=0.002, help="Polygon sadelestirme katsayisi.")
-    parser.add_argument("--overwrite", action="store_true", help="Cikti klasoru varsa silip yeniden olustur.")
+    parser = argparse.ArgumentParser(
+        description="PlantSeg maskelerini YOLO segmentation formatina cevir."
+    )
+    parser.add_argument(
+        "--plantseg", type=Path, default=PLANTSEG_ROOT, help="Orijinal PlantSeg klasoru."
+    )
+    parser.add_argument(
+        "--output", type=Path, default=OUTPUT_ROOT, help="Olusturulacak YOLO veri seti klasoru."
+    )
+    parser.add_argument(
+        "--min-area", type=float, default=10.0, help="Cok kucuk konturlari elemek icin alan esigi."
+    )
+    parser.add_argument(
+        "--epsilon", type=float, default=0.002, help="Polygon sadelestirme katsayisi."
+    )
+    parser.add_argument(
+        "--overwrite", action="store_true", help="Cikti klasoru varsa silip yeniden olustur."
+    )
     return parser.parse_args()
 
 

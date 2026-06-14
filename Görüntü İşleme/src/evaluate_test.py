@@ -7,7 +7,6 @@ import sys
 from pathlib import Path
 from typing import Any
 
-
 ROOT = Path(__file__).resolve().parents[1]
 VENV_PYTHON = ROOT / ".venv" / "Scripts" / "python.exe"
 DEFAULT_DATA = ROOT / "data" / "plantseg_yolo_augmented" / "data.yaml"
@@ -79,7 +78,11 @@ def save_metrics_json(results: Any, output_dir: Path, weights: Path, data_yaml: 
         "weights": str(weights),
         "data": str(data_yaml),
         "split": "test",
-        "metrics": {key: float(value) for key, value in results_dict.items() if isinstance(value, (int, float))},
+        "metrics": {
+            key: float(value)
+            for key, value in results_dict.items()
+            if isinstance(value, (int, float))
+        },
     }
 
     output_path = output_dir / "test_metrics_summary.json"
@@ -153,7 +156,9 @@ def evaluate(
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="En iyi best.pt modelini test dataseti uzerinde degerlendir.")
+    parser = argparse.ArgumentParser(
+        description="En iyi best.pt modelini test dataseti uzerinde degerlendir."
+    )
     parser.add_argument(
         "--weights",
         type=Path,
@@ -171,7 +176,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--device", default="0", help="GPU icin 0, CPU icin cpu yaz.")
     parser.add_argument("--workers", type=int, default=4, help="Data loader worker sayisi.")
     parser.add_argument("--iou", type=float, default=0.7, help="NMS IoU esigi.")
-    parser.add_argument("--conf", type=float, default=None, help="Confidence esigi. Varsayilan Ultralytics ayari.")
+    parser.add_argument(
+        "--conf", type=float, default=None, help="Confidence esigi. Varsayilan Ultralytics ayari."
+    )
     parser.add_argument("--save-json", action="store_true", help="COCO JSON metrik dosyasi yaz.")
     return parser.parse_args()
 

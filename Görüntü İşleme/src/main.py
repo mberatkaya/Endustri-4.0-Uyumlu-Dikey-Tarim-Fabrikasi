@@ -6,7 +6,6 @@ import sys
 from pathlib import Path
 from typing import Literal
 
-
 ROOT = Path(__file__).resolve().parents[1]
 VENV_PYTHON = ROOT / ".venv" / "Scripts" / "python.exe"
 YOLO_DATASET_ROOT = ROOT / "data" / "plantseg_yolo_augmented"
@@ -41,14 +40,20 @@ def parse_batch(value: str) -> BatchValue:
     try:
         batch = float(normalized)
     except ValueError as exc:
-        raise argparse.ArgumentTypeError("Batch icin 'auto', tam sayi veya 0.0-1.0 arasi VRAM orani yaz.") from exc
+        raise argparse.ArgumentTypeError(
+            "Batch icin 'auto', tam sayi veya 0.0-1.0 arasi VRAM orani yaz."
+        ) from exc
 
     if batch == -1:
         return -1
     if batch <= 0:
-        raise argparse.ArgumentTypeError("Batch pozitif olmali veya otomatik ayar icin 'auto' olmali.")
+        raise argparse.ArgumentTypeError(
+            "Batch pozitif olmali veya otomatik ayar icin 'auto' olmali."
+        )
     if batch > 1 and not batch.is_integer():
-        raise argparse.ArgumentTypeError("Manuel batch 1'den buyukse tam sayi olmali; ornek: 8, 16.")
+        raise argparse.ArgumentTypeError(
+            "Manuel batch 1'den buyukse tam sayi olmali; ornek: 8, 16."
+        )
 
     return int(batch) if batch >= 1 else batch
 
@@ -120,10 +125,22 @@ def find_data_yaml(data_path: Path) -> Path:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="YOLO segmentation egitimini baslat.")
-    parser.add_argument("--data", type=Path, default=YOLO_DATASET_ROOT, help="YOLO data klasoru veya data.yaml dosyasi.")
-    parser.add_argument("--model", default=DEFAULT_MODEL, help="Baslangic YOLO segmentation agirligi.")
+    parser.add_argument(
+        "--data",
+        type=Path,
+        default=YOLO_DATASET_ROOT,
+        help="YOLO data klasoru veya data.yaml dosyasi.",
+    )
+    parser.add_argument(
+        "--model", default=DEFAULT_MODEL, help="Baslangic YOLO segmentation agirligi."
+    )
     parser.add_argument("--epochs", type=int, default=300, help="Egitim epoch sayisi.")
-    parser.add_argument("--patience", type=int, default=30, help="Iyilesme yoksa kac epoch sonra early stopping yapilsin.")
+    parser.add_argument(
+        "--patience",
+        type=int,
+        default=30,
+        help="Iyilesme yoksa kac epoch sonra early stopping yapilsin.",
+    )
     parser.add_argument("--imgsz", type=int, default=640, help="YOLO egitim gorsel boyutu.")
     parser.add_argument(
         "--batch",
