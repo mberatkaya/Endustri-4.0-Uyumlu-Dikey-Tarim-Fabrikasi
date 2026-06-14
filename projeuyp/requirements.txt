@@ -1,6 +1,6 @@
-streamlit
-pandas
-numpy
-opencv-python
-joblib
-xgboost
+streamlit>=1.40,<2
+pandas>=2.2,<4
+numpy>=1.26,<3
+opencv-python-headless>=4.10,<5
+joblib>=1.4,<2
+xgboost>=2.1,<4

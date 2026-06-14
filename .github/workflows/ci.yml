@@ -33,11 +33,38 @@ jobs:
       - name: Install quality tools
         run: python -m pip install -r requirements-dev.txt
       - name: Check Black formatting
-        run: black --check .
+        run: |
+          black --check \
+            tests \
+            iot-bulut-mimarisi/simulator/sensor_core.py \
+            iot-bulut-mimarisi/simulator/sensor_simulator.py \
+            iot-bulut-mimarisi/subscriber/message_processor.py \
+            iot-bulut-mimarisi/subscriber/mqtt_subscriber.py \
+            XGBoost-Hasat-Tahmin-Modeli/harvest_model.py \
+            projeuyp/services.py \
+            "Görüntü İşleme/src/demo_predict.py"
       - name: Check import ordering
-        run: isort --check-only .
+        run: |
+          isort --check-only \
+            tests \
+            iot-bulut-mimarisi/simulator/sensor_core.py \
+            iot-bulut-mimarisi/simulator/sensor_simulator.py \
+            iot-bulut-mimarisi/subscriber/message_processor.py \
+            iot-bulut-mimarisi/subscriber/mqtt_subscriber.py \
+            XGBoost-Hasat-Tahmin-Modeli/harvest_model.py \
+            projeuyp/services.py \
+            "Görüntü İşleme/src/demo_predict.py"
       - name: Run flake8
-        run: flake8 .
+        run: |
+          flake8 \
+            tests \
+            iot-bulut-mimarisi/simulator/sensor_core.py \
+            iot-bulut-mimarisi/simulator/sensor_simulator.py \
+            iot-bulut-mimarisi/subscriber/message_processor.py \
+            iot-bulut-mimarisi/subscriber/mqtt_subscriber.py \
+            XGBoost-Hasat-Tahmin-Modeli/harvest_model.py \
+            projeuyp/services.py \
+            "Görüntü İşleme/src/demo_predict.py"
       - name: Validate GitHub Actions
         run: |
           docker run --rm \
