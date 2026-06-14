@@ -1,0 +1,65 @@
+[build-system]
+requires = ["setuptools>=75", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dikey-tarim-fabrikasi"
+version = "0.1.0"
+description = "Endustri 4.0 uyumlu dikey tarim fabrikasi"
+readme = "README.md"
+requires-python = ">=3.11"
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+extend-exclude = '''
+/(
+  \.git
+  | \.venv
+  | build
+  | dist
+  | data
+  | models
+  | outputs
+  | runs
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 100
+skip_glob = [
+  "*/data/*",
+  "*/models/*",
+  "*/outputs/*",
+  "*/.venv/*",
+]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+addopts = ["-ra", "-q", "--strict-markers"]
+testpaths = ["tests"]
+markers = [
+  "integration: mock/fake component integration tests",
+  "e2e: staging-only end-to-end tests",
+  "yolo: staging-only trained model smoke tests",
+]
+filterwarnings = [
+  "ignore::DeprecationWarning",
+  "ignore::PendingDeprecationWarning",
+]
+
+[tool.coverage.run]
+branch = true
+omit = ["tests/*"]
+
+[tool.coverage.report]
+precision = 2
+show_missing = true
+skip_covered = false
+exclude_lines = [
+  "pragma: no cover",
+  "if __name__ == .__main__.:",
+  "raise NotImplementedError",
+  "if TYPE_CHECKING:",
+]

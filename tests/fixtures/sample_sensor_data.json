@@ -1,0 +1,56 @@
+{
+  "test_scenarios": [
+    {
+      "name": "normal_operation",
+      "description": "Normal operating conditions for phase 2",
+      "data": {
+        "ph": 5.9,
+        "ec": 1.1,
+        "temp": 21.0,
+        "water_temp": 18.5,
+        "hum": 72.0,
+        "co2": 500,
+        "light": 165
+      }
+    },
+    {
+      "name": "high_temperature",
+      "description": "High temperature alert condition",
+      "data": {
+        "ph": 5.8,
+        "ec": 1.2,
+        "temp": 28.0,
+        "water_temp": 19.0,
+        "hum": 70.0,
+        "co2": 600,
+        "light": 200
+      }
+    },
+    {
+      "name": "low_ph",
+      "description": "Low pH alert condition",
+      "data": {
+        "ph": 5.2,
+        "ec": 1.2,
+        "temp": 21.0,
+        "water_temp": 19.0,
+        "hum": 70.0,
+        "co2": 600,
+        "light": 200
+      }
+    },
+    {
+      "name": "high_ec",
+      "description": "High EC alert condition",
+      "data": {
+        "ph": 5.8,
+        "ec": 2.5,
+        "temp": 21.0,
+        "water_temp": 19.0,
+        "hum": 70.0,
+        "co2": 600,
+        "light": 200
+      }
+    }
+  ]
+}
