@@ -7,7 +7,6 @@ import sys
 from pathlib import Path
 from typing import Any
 
-
 ROOT = Path(__file__).resolve().parents[1]
 VENV_PYTHON = ROOT / ".venv" / "Scripts" / "python.exe"
 DEFAULT_RUN_DIR = ROOT / "outputs" / "training" / "plantseg_problem_region"
@@ -53,7 +52,9 @@ def restore_file(path: Path, content: bytes | None) -> None:
     path.write_bytes(content)
 
 
-def save_metrics_summary(results: Any, run_dir: Path, weights: Path, data_yaml: Path, split: str) -> Path:
+def save_metrics_summary(
+    results: Any, run_dir: Path, weights: Path, data_yaml: Path, split: str
+) -> Path:
     results_dict = getattr(results, "results_dict", {}) or {}
     payload = {
         "weights": str(weights),
@@ -170,11 +171,22 @@ def run_validation(
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Yarida kesilen YOLO egitim klasorundeki degerlendirme dosyalarini tamamla.")
-    parser.add_argument("--run-dir", type=Path, default=DEFAULT_RUN_DIR, help="YOLO egitim run klasoru.")
-    parser.add_argument("--weights", type=Path, default=None, help="Degerlendirilecek .pt dosyasi. Varsayilan best.pt.")
+    parser = argparse.ArgumentParser(
+        description="Yarida kesilen YOLO egitim klasorundeki degerlendirme dosyalarini tamamla."
+    )
+    parser.add_argument(
+        "--run-dir", type=Path, default=DEFAULT_RUN_DIR, help="YOLO egitim run klasoru."
+    )
+    parser.add_argument(
+        "--weights",
+        type=Path,
+        default=None,
+        help="Degerlendirilecek .pt dosyasi. Varsayilan best.pt.",
+    )
     parser.add_argument("--data", type=Path, default=DEFAULT_DATA, help="YOLO data.yaml dosyasi.")
-    parser.add_argument("--split", default="val", choices=("train", "val", "test"), help="Degerlendirilecek split.")
+    parser.add_argument(
+        "--split", default="val", choices=("train", "val", "test"), help="Degerlendirilecek split."
+    )
     parser.add_argument("--imgsz", type=int, default=640, help="Degerlendirme gorsel boyutu.")
     parser.add_argument("--batch", type=int, default=8, help="Degerlendirme batch boyutu.")
     parser.add_argument("--device", default="0", help="GPU icin 0, CPU icin cpu yaz.")

@@ -9,7 +9,6 @@ import cv2
 import numpy as np
 import yaml
 
-
 ROOT = Path(__file__).resolve().parents[1]
 INPUT_ROOT = ROOT / "data" / "plantseg_yolo"
 OUTPUT_ROOT = ROOT / "data" / "plantseg_yolo_augmented"
@@ -124,7 +123,9 @@ def resize_to_training_size(image: np.ndarray) -> np.ndarray:
     return cv2.resize(image, (IMAGE_SIZE, IMAGE_SIZE), interpolation=cv2.INTER_AREA)
 
 
-def flip_labels(labels: list[tuple[int, np.ndarray]], horizontal: bool, vertical: bool) -> list[tuple[int, np.ndarray]]:
+def flip_labels(
+    labels: list[tuple[int, np.ndarray]], horizontal: bool, vertical: bool
+) -> list[tuple[int, np.ndarray]]:
     flipped = []
     for class_id, points in labels:
         new_points = points.copy()
@@ -161,7 +162,9 @@ def rotate_image_and_labels(image: np.ndarray, labels: list[tuple[int, np.ndarra
     return rotated_image, clean_labels(rotated_labels)
 
 
-def change_brightness_contrast(image: np.ndarray, brightness: int = 0, contrast: float = 1.0) -> np.ndarray:
+def change_brightness_contrast(
+    image: np.ndarray, brightness: int = 0, contrast: float = 1.0
+) -> np.ndarray:
     # Poligon degismez; sadece piksel degerleri degisir.
     adjusted = image.astype(np.float32) * contrast + brightness
     return np.clip(adjusted, 0, 255).astype(np.uint8)
@@ -175,7 +178,9 @@ def color_jitter(image: np.ndarray) -> np.ndarray:
     return cv2.cvtColor(hsv.astype(np.uint8), cv2.COLOR_HSV2BGR)
 
 
-def mask_protected_crop(image: np.ndarray, labels: list[tuple[int, np.ndarray]], rng: random.Random):
+def mask_protected_crop(
+    image: np.ndarray, labels: list[tuple[int, np.ndarray]], rng: random.Random
+):
     height, width = image.shape[:2]
     crop_size = min(CROP_SIZE, width, height)
 
@@ -214,7 +219,9 @@ def mask_protected_crop(image: np.ndarray, labels: list[tuple[int, np.ndarray]],
     return cropped, clean_labels(cropped_labels)
 
 
-def save_sample(output_root: Path, split: str, image_path: Path, suffix: str, image: np.ndarray, labels) -> None:
+def save_sample(
+    output_root: Path, split: str, image_path: Path, suffix: str, image: np.ndarray, labels
+) -> None:
     output_image = output_root / "images" / split / f"{image_path.stem}_{suffix}{image_path.suffix}"
     output_label = output_root / "labels" / split / f"{image_path.stem}_{suffix}.txt"
     write_image(output_image, image)
@@ -228,15 +235,27 @@ def build_variations():
         variations.append(
             (
                 f"rot_{angle:+g}",
-                lambda image, labels, rng, angle=angle: rotate_image_and_labels(image, labels, angle),
+                lambda image, labels, rng, angle=angle: rotate_image_and_labels(
+                    image, labels, angle
+                ),
             )
         )
 
     if USE_HORIZONTAL_FLIP:
-        variations.append(("hflip", lambda image, labels, rng: (cv2.flip(image, 1), flip_labels(labels, True, False))))
+        variations.append(
+            (
+                "hflip",
+                lambda image, labels, rng: (cv2.flip(image, 1), flip_labels(labels, True, False)),
+            )
+        )
 
     if USE_VERTICAL_FLIP:
-        variations.append(("vflip", lambda image, labels, rng: (cv2.flip(image, 0), flip_labels(labels, False, True))))
+        variations.append(
+            (
+                "vflip",
+                lambda image, labels, rng: (cv2.flip(image, 0), flip_labels(labels, False, True)),
+            )
+        )
 
     for brightness in BRIGHTNESS_VALUES:
         variations.append(
@@ -261,10 +280,14 @@ def build_variations():
         )
 
     if USE_COLOR_JITTER:
-        variations.append(("color_jitter", lambda image, labels, rng: (color_jitter(image), labels)))
+        variations.append(
+            ("color_jitter", lambda image, labels, rng: (color_jitter(image), labels))
+        )
 
     if USE_MASK_PROTECTED_CROP:
-        variations.append(("mask_crop", lambda image, labels, rng: mask_protected_crop(image, labels, rng)))
+        variations.append(
+            ("mask_crop", lambda image, labels, rng: mask_protected_crop(image, labels, rng))
+        )
 
     return variations
 
@@ -306,13 +329,21 @@ def write_data_yaml(output_root: Path) -> None:
     )
 
 
-def augment_dataset(input_root: Path, output_root: Path, overwrite: bool, variations_per_train_image: int) -> None:
-    if input_root == output_root or input_root in output_root.parents or output_root in input_root.parents:
+def augment_dataset(
+    input_root: Path, output_root: Path, overwrite: bool, variations_per_train_image: int
+) -> None:
+    if (
+        input_root == output_root
+        or input_root in output_root.parents
+        or output_root in input_root.parents
+    ):
         raise ValueError("Cikti klasoru input klasoruyle ayni yerde veya onun icinde olamaz.")
 
     if output_root.exists():
         if not overwrite:
-            raise FileExistsError(f"Cikti klasoru zaten var: {output_root}\nYeniden olusturmak icin --overwrite ekle.")
+            raise FileExistsError(
+                f"Cikti klasoru zaten var: {output_root}\nYeniden olusturmak icin --overwrite ekle."
+            )
         shutil.rmtree(output_root)
 
     rng = random.Random(RANDOM_SEED)
@@ -326,7 +357,9 @@ def augment_dataset(input_root: Path, output_root: Path, overwrite: bool, variat
     for split in SPLITS:
         image_dir = input_root / "images" / split
         label_dir = input_root / "labels" / split
-        image_paths = sorted(path for path in image_dir.iterdir() if path.suffix.lower() in IMAGE_EXTENSIONS)
+        image_paths = sorted(
+            path for path in image_dir.iterdir() if path.suffix.lower() in IMAGE_EXTENSIONS
+        )
 
         for image_path in image_paths:
             label_path = label_dir / f"{image_path.stem}.txt"
@@ -340,9 +373,13 @@ def augment_dataset(input_root: Path, output_root: Path, overwrite: bool, variat
             if split != "train":
                 continue
 
-            for suffix, apply_variation in choose_variations(variations, variations_per_train_image, rng):
+            for suffix, apply_variation in choose_variations(
+                variations, variations_per_train_image, rng
+            ):
                 augmented_image, augmented_labels = apply_variation(image, labels, rng)
-                save_sample(output_root, split, image_path, suffix, augmented_image, augmented_labels)
+                save_sample(
+                    output_root, split, image_path, suffix, augmented_image, augmented_labels
+                )
 
         print(f"{split}: {len(image_paths)} kaynak gorsel islendi.")
 
@@ -351,10 +388,18 @@ def augment_dataset(input_root: Path, output_root: Path, overwrite: bool, variat
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="YOLO segmentation veri setine kontrollu augmentation uygula.")
-    parser.add_argument("--input", type=Path, default=INPUT_ROOT, help="PlantSeg -> YOLO cikti klasoru.")
-    parser.add_argument("--output", type=Path, default=OUTPUT_ROOT, help="Augmented YOLO veri seti klasoru.")
-    parser.add_argument("--overwrite", action="store_true", help="Cikti klasoru varsa silip yeniden olustur.")
+    parser = argparse.ArgumentParser(
+        description="YOLO segmentation veri setine kontrollu augmentation uygula."
+    )
+    parser.add_argument(
+        "--input", type=Path, default=INPUT_ROOT, help="PlantSeg -> YOLO cikti klasoru."
+    )
+    parser.add_argument(
+        "--output", type=Path, default=OUTPUT_ROOT, help="Augmented YOLO veri seti klasoru."
+    )
+    parser.add_argument(
+        "--overwrite", action="store_true", help="Cikti klasoru varsa silip yeniden olustur."
+    )
     parser.add_argument(
         "--variations",
         type=int,

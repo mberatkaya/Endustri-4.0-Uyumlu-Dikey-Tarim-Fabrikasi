@@ -7,7 +7,6 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_URL = "https://zenodo.org/records/17719108/files/plantseg.zip?download=1"
 DEFAULT_MD5 = "9358a66dff88cdd15c4fe009763c40a3"
@@ -57,7 +56,10 @@ def download_file(url: str, target: Path) -> None:
 
 
 def is_plantseg_root(path: Path) -> bool:
-    return all((path / "images" / split).is_dir() and (path / "annotations" / split).is_dir() for split in SPLITS)
+    return all(
+        (path / "images" / split).is_dir() and (path / "annotations" / split).is_dir()
+        for split in SPLITS
+    )
 
 
 def find_plantseg_root(extract_dir: Path) -> Path:
@@ -68,7 +70,9 @@ def find_plantseg_root(extract_dir: Path) -> Path:
         if is_plantseg_root(path):
             return path
 
-    raise FileNotFoundError("PlantSeg kok klasoru bulunamadi: images/train ve annotations/train bekleniyor.")
+    raise FileNotFoundError(
+        "PlantSeg kok klasoru bulunamadi: images/train ve annotations/train bekleniyor."
+    )
 
 
 def ensure_safe_delete(path: Path) -> None:
@@ -115,19 +119,40 @@ def safe_extract_zip(zip_path: Path, target_dir: Path, overwrite: bool) -> Path:
 def print_split_counts(plantseg_root: Path) -> None:
     for split in SPLITS:
         image_count = len([p for p in (plantseg_root / "images" / split).iterdir() if p.is_file()])
-        mask_count = len([p for p in (plantseg_root / "annotations" / split).iterdir() if p.is_file()])
+        mask_count = len(
+            [p for p in (plantseg_root / "annotations" / split).iterdir() if p.is_file()]
+        )
         print(f"{split}: images={image_count}, annotations={mask_count}")
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="PlantSeg veri setini indir, dogrula ve cikar.")
     parser.add_argument("--url", default=DEFAULT_URL, help="PlantSeg zip indirme adresi.")
-    parser.add_argument("--zip-path", type=Path, default=DEFAULT_ZIP_PATH, help="Zip dosyasinin kaydedilecegi yol.")
-    parser.add_argument("--extract-dir", type=Path, default=DEFAULT_EXTRACT_DIR, help="Zip dosyasinin acilacagi klasor.")
-    parser.add_argument("--md5", default=DEFAULT_MD5, help="Beklenen MD5 degeri. Bos string verirsen kontrol atlanir.")
-    parser.add_argument("--overwrite", action="store_true", help="Mevcut zip/cikarma klasorunu yeniden olustur.")
-    parser.add_argument("--skip-existing", action="store_true", help="Mevcut gecerli zip ve cikarma klasorlerini kullan.")
-    parser.add_argument("--no-extract", action="store_true", help="Sadece zip indir ve MD5 kontrolu yap.")
+    parser.add_argument(
+        "--zip-path", type=Path, default=DEFAULT_ZIP_PATH, help="Zip dosyasinin kaydedilecegi yol."
+    )
+    parser.add_argument(
+        "--extract-dir",
+        type=Path,
+        default=DEFAULT_EXTRACT_DIR,
+        help="Zip dosyasinin acilacagi klasor.",
+    )
+    parser.add_argument(
+        "--md5",
+        default=DEFAULT_MD5,
+        help="Beklenen MD5 degeri. Bos string verirsen kontrol atlanir.",
+    )
+    parser.add_argument(
+        "--overwrite", action="store_true", help="Mevcut zip/cikarma klasorunu yeniden olustur."
+    )
+    parser.add_argument(
+        "--skip-existing",
+        action="store_true",
+        help="Mevcut gecerli zip ve cikarma klasorlerini kullan.",
+    )
+    parser.add_argument(
+        "--no-extract", action="store_true", help="Sadece zip indir ve MD5 kontrolu yap."
+    )
     return parser.parse_args()
 
 
