@@ -31,16 +31,19 @@ uyp-p8-iot/
 pip install paho-mqtt psycopg2-binary
 ```
 
-`config.py` içindeki bağlantı bilgilerini kendi ortamınıza göre düzenleyin:
+Bağlantı bilgilerini ortam değişkenleriyle verin:
 
-```python
-BROKER_HOST = "your-cluster.s1.eu.hivemq.cloud"
-MQTT_USER   = "your_username"
-MQTT_PASS   = "your_password"
+```bash
+export MQTT_HOST="your-cluster.s1.eu.hivemq.cloud"
+export MQTT_PORT="8883"
+export MQTT_USER="your_username"
+export MQTT_PASS="your_password"
 
-DB_HOST = "aws-0-eu-west-1.pooler.supabase.com"
-DB_USER = "postgres.your_project_id"
-DB_PASS = "your_db_password"
+export DB_HOST="aws-0-eu-west-1.pooler.supabase.com"
+export DB_PORT="5432"
+export DB_NAME="postgres"
+export DB_USER="postgres.your_project_id"
+export DB_PASS="your_db_password"
 ```
 
 ---
