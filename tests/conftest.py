@@ -16,8 +16,8 @@ for source_root in (
 
 
 class RecordingCursor:
-    def __init__(self, statements: list[tuple[str, tuple]]) -> None:
-        self.statements = statements
+    def __init__(self, connection: "RecordingConnection") -> None:
+        self.connection = connection
 
     def __enter__(self):
         return self
@@ -26,19 +26,30 @@ class RecordingCursor:
         return False
 
     def execute(self, sql: str, parameters: tuple) -> None:
-        self.statements.append((sql, parameters))
+        if self.connection.fail_on_execute:
+            raise RuntimeError("Kayit hatasi")
+        self.connection.statements.append((sql, parameters))
+
+    def close(self) -> None:
+        self.connection.cursor_close_count += 1
 
 
 class RecordingConnection:
     def __init__(self) -> None:
         self.statements: list[tuple[str, tuple]] = []
         self.commit_count = 0
+        self.rollback_count = 0
+        self.cursor_close_count = 0
+        self.fail_on_execute = False
 
     def cursor(self) -> RecordingCursor:
-        return RecordingCursor(self.statements)
+        return RecordingCursor(self)
 
     def commit(self) -> None:
         self.commit_count += 1
+
+    def rollback(self) -> None:
+        self.rollback_count += 1
 
 
 @pytest.fixture

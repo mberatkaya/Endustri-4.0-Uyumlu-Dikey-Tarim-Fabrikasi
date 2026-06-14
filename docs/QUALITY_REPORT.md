@@ -50,7 +50,7 @@ merge sonrası branch silme açılmıştır.
 
 | ID | Seviye | Durum | Öncelikli aksiyon |
 | --- | --- | --- | --- |
-| BLOCK-001 | Major | Gerçek DB şeması ve migration dosyaları teslim edilmedi | DB ekibi tesliminden sonra fake cursor testini gerçek test DB testiyle genişlet |
+| BLOCK-001 | Major | SQL Server şeması mevcut, ancak gerçek test sunucusu CI'da çalıştırılmıyor | Fake sözleşme testini izole SQL Server smoke testiyle genişlet |
 | BLOCK-002 | Major | Sensör verisini panel için sunan gerçek API yok | API yanıt şemasını `SensorDataProvider` arayüzüne bağla |
 | BLOCK-003 | Major | Notebook modeli panelin yedi sütunlu tahmin sözleşmesiyle uyumlu değil | Panel için ayrı model pipeline/artifact üret veya feature adapter yaz |
 | RISK-001 | Major | Demo giriş bilgileri uygulama kodunda sabit | Gerçek dağıtımdan önce kimlik doğrulama servisi ve secret yönetimi ekle |
@@ -73,7 +73,7 @@ Geçici MQTT broker → Publish/Subscribe round-trip
 best.pt → CPU inference smoke
 ```
 
-DB ve API olmadan tam hedef akışın geçtiği iddia edilmez. `BLOCK-001` ve
+Gerçek DB ve API olmadan tam hedef akışın geçtiği iddia edilmez. `BLOCK-001` ve
 `BLOCK-002` kapatıldıktan sonra aynı staging workflow gerçek test servisleriyle
 genişletilecektir.
 

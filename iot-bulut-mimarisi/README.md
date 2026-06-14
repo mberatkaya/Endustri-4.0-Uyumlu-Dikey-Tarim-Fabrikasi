@@ -1,14 +1,18 @@
 # IoT Bulut Mimarisi
 
-Bu klasor, dikey tarim verileriyle iot sensor simülasyonu ve bulut altyapisi calismalarini icerir.
-Marul bitkisinin 6 büyüme aşamasına özgü sensör verisi simüle edilerek HiveMQ Cloud MQTT broker üzerinden Supabase PostgreSQL bulut veritabanına iletilmektedir.
+Bu klasor, dikey tarim verileriyle IoT sensor simulasyonu ve bulut altyapisi
+calismalarini icerir. Marul bitkisinin 6 buyume asamasina ozgu sensor verisi,
+HiveMQ Cloud MQTT broker uzerinden secilen PostgreSQL veya SQL Server backend'ine
+iletilir.
 
 ---
 
 ## Sistem Mimarisi
 
 ```
-Sensör Simülatörü  →  HiveMQ Cloud (MQTT/TLS)  →  Subscriber  →  Supabase PostgreSQL
+Sensor Simulatoru -> HiveMQ Cloud (MQTT/TLS) -> Subscriber -> SensorStore
+                                                          -> PostgreSQL
+                                                          -> SQL Server
 ```
 
 ## Klasör Yapısı
@@ -28,7 +32,13 @@ uyp-p8-iot/
 ## Kurulum
 
 ```bash
-pip install paho-mqtt psycopg2-binary
+pip install -r requirements.txt
+```
+
+SQL Server kullanilacaksa:
+
+```bash
+pip install -r requirements-sqlserver.txt
 ```
 
 Bağlantı bilgilerini ortam değişkenleriyle verin:
@@ -45,6 +55,21 @@ export DB_NAME="postgres"
 export DB_USER="postgres.your_project_id"
 export DB_PASS="your_db_password"
 ```
+
+SQL Server icin `DB_ENGINE=sqlserver` secilir. Tam baglanti dizesi verilebilir:
+
+```bash
+export DB_ENGINE="sqlserver"
+export SQLSERVER_CONNECTION_STRING="Server=localhost,1433;Database=DikeyTarimDB;UID=sa;PWD=secret;Encrypt=yes;TrustServerCertificate=yes"
+```
+
+Alternatif olarak `SQLSERVER_HOST`, `SQLSERVER_PORT`, `SQLSERVER_DATABASE`,
+`SQLSERVER_USER`, `SQLSERVER_PASSWORD`, `SQLSERVER_ENCRYPT` ve
+`SQLSERVER_TRUST_CERTIFICATE` degiskenleri kullanilir.
+
+Bos SQL Server kurulumu icin depo kokundeki `DikeyTarimSQL/01_Veritabani.sql` -
+`12_Trigger.sql` dosyalari numara sirasiyla calistirilir. `13` ve `14` numarali
+dosyalar rapor/inceleme sorgularidir.
 
 ---
 
@@ -80,7 +105,7 @@ Başlatılınca 4 adımlı interaktif menü açılır:
 python subscriber/mqtt_subscriber.py
 ```
 
-Her gelen mesajı ekrana basar, latency hesaplar ve Supabase'e yazar:
+Her gelen mesaji ekrana basar, latency hesaplar ve secilen veritabanina yazar:
 
 ```
 [13:19:19] PH            5.85 pH       Lat:   79.0ms  DB ✓

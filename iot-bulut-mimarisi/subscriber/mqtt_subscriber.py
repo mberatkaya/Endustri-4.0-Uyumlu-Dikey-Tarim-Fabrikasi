@@ -1,4 +1,4 @@
-"""MQTT subscriber that validates sensor payloads and writes them to PostgreSQL."""
+"""MQTT subscriber that validates sensor payloads and writes them to a configured DB."""
 
 from __future__ import annotations
 
@@ -9,13 +9,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import paho.mqtt.client as mqtt
-import psycopg2
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from config import (  # noqa: E402
     BROKER_HOST,
     BROKER_PORT,
+    DB_ENGINE,
     DB_HOST,
     DB_NAME,
     DB_PASS,
@@ -23,9 +23,18 @@ from config import (  # noqa: E402
     DB_USER,
     MQTT_PASS,
     MQTT_USER,
+    SQLSERVER_CONNECTION_STRING,
+    SQLSERVER_DATABASE,
+    SQLSERVER_ENCRYPT,
+    SQLSERVER_HOST,
+    SQLSERVER_PASSWORD,
+    SQLSERVER_PORT,
+    SQLSERVER_TRUST_CERTIFICATE,
+    SQLSERVER_USER,
     UNITS,
 )
 from subscriber.message_processor import process_message  # noqa: E402
+from subscriber.sensor_store import build_sensor_store  # noqa: E402
 
 LOG_FILE = Path(__file__).resolve().parent.parent / "logs" / "subscriber_log.txt"
 
@@ -46,18 +55,34 @@ def _ts() -> str:
     return datetime.now(timezone.utc).strftime("%H:%M:%S")
 
 
-def get_db():
-    return psycopg2.connect(
-        host=DB_HOST,
-        port=DB_PORT,
-        dbname=DB_NAME,
-        user=DB_USER,
-        password=DB_PASS,
-        sslmode="require",
-    )
+def get_db(engine: str = DB_ENGINE):
+    selected_engine = engine.lower()
+    if selected_engine == "postgres":
+        import psycopg2
+
+        return psycopg2.connect(
+            host=DB_HOST,
+            port=DB_PORT,
+            dbname=DB_NAME,
+            user=DB_USER,
+            password=DB_PASS,
+            sslmode="require",
+        )
+    if selected_engine == "sqlserver":
+        from mssql_python import connect
+
+        connection_string = SQLSERVER_CONNECTION_STRING or (
+            f"Server={SQLSERVER_HOST},{SQLSERVER_PORT};"
+            f"Database={SQLSERVER_DATABASE};"
+            f"UID={SQLSERVER_USER};PWD={SQLSERVER_PASSWORD};"
+            f"Encrypt={SQLSERVER_ENCRYPT};"
+            f"TrustServerCertificate={SQLSERVER_TRUST_CERTIFICATE}"
+        )
+        return connect(connection_string)
+    raise ValueError(f"Desteklenmeyen DB_ENGINE: {engine}")
 
 
-def make_callbacks(conn):
+def make_callbacks(store):
     def on_connect(client, userdata, flags, reason_code, properties):
         if reason_code == 0:
             client.subscribe("dikeytarim/#")
@@ -69,7 +94,7 @@ def make_callbacks(conn):
         global alarm_count, db_write_count, message_count
 
         try:
-            result = process_message(conn, message.topic, message.payload)
+            result = process_message(store, message.topic, message.payload)
             if result is None:
                 return
 
@@ -112,12 +137,13 @@ def main() -> None:
     log(f"[{_ts()}] Başlatılıyor...")
     try:
         conn = get_db()
-        log(f"[{_ts()}] Supabase bağlantısı kuruldu")
+        store = build_sensor_store(conn, DB_ENGINE)
+        log(f"[{_ts()}] {DB_ENGINE} bağlantısı kuruldu")
     except Exception as exc:
         log(f"[{_ts()}] DB hatası: {exc}")
         return
 
-    on_connect, on_message, on_disconnect = make_callbacks(conn)
+    on_connect, on_message, on_disconnect = make_callbacks(store)
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
     client.username_pw_set(MQTT_USER, MQTT_PASS)
     client.tls_set()
