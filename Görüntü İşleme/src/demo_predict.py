@@ -1,29 +1,29 @@
+from __future__ import annotations
+
 from pathlib import Path
+from typing import Any
 
 import cv2
 import numpy as np
-from ultralytics import YOLO
-
 
 # AYARLAR
-
-# SOURCE'u degistirerek resim, video ya da webcam ile tahmin yapılabilir
+# SOURCE'u degistirerek resim, video ya da webcam ile tahmin yapilabilir.
 
 ROOT = Path(__file__).resolve().parents[1]
 
-SOURCE = "0"                          # "0" = webcam Resim/video icin yol yaz: "test.jpg" veya "video.mp4"
-WEIGHTS = ROOT / "models" / "best.pt"  # Egitilmis modelin ağırlıkları
-CONF = 0.25                          # Guven esigi: bunun altindaki tahminler gosterilmez
-IMGSZ = 640                          # Tahmin gorsel boyutu
-OUTPUT = None                        # Sonucu kaydetmek icin yol verebilirsiniz (orn. "outputs/tahmin.mp4") ve None = sadece ekranda goster.
-MAX_FRAMES = None                    # Video icin en fazla kac kare islensin (None = hepsi).
+SOURCE = "0"  # "0" = webcam. Resim/video icin yol yaz: "test.jpg" veya "video.mp4"
+WEIGHTS = ROOT / "models" / "best.pt"  # Egitilmis modelin agirliklari
+CONF = 0.25  # Guven esigi: bunun altindaki tahminler gosterilmez
+IMGSZ = 640  # Tahmin gorsel boyutu
+OUTPUT = None  # Sonucu kaydetmek icin yol (orn. "outputs/tahmin.mp4"); None = sadece ekranda goster
+MAX_FRAMES = None  # Video icin en fazla kac kare islensin (None = hepsi)
 
 WINDOW_NAME = "PlantSeg problem_region tahmini"
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
 
 
 def read_image(path: Path) -> np.ndarray:
-    # Turkce/ozel karakterli yollar icin
+    """Turkce/ozel karakterli yollar icin guvenli resim okuma."""
     data = np.fromfile(str(path), dtype=np.uint8)
     image = cv2.imdecode(data, cv2.IMREAD_COLOR)
     if image is None:
@@ -32,6 +32,7 @@ def read_image(path: Path) -> np.ndarray:
 
 
 def write_image(path: Path, image: np.ndarray) -> None:
+    """Turkce/ozel karakterli yollar icin guvenli resim yazma."""
     path.parent.mkdir(parents=True, exist_ok=True)
     ok, encoded = cv2.imencode(path.suffix, image)
     if not ok:
@@ -39,17 +40,26 @@ def write_image(path: Path, image: np.ndarray) -> None:
     encoded.tofile(str(path))
 
 
-def predict_frame(model: YOLO, frame: np.ndarray) -> np.ndarray:
-    """Tek bir kare/goruntu uzerinde tahmin yapar ve sonucu cizilmis goruntu dondurur.
+def parse_source(value: str) -> int | Path:
+    """Webcam icin rakam (orn. "0") -> int; aksi halde dosya yolu -> Path dondurur."""
+    if value.isdigit():
+        return int(value)
+    return Path(value)
 
-    model.predict tahmin sonuclarini verir .plot() bu sonuclari (maske + kutu)
+
+def predict_frame(
+    model: Any, frame: np.ndarray, conf: float = CONF, imgsz: int = IMGSZ
+) -> np.ndarray:
+    """Tek bir kare/goruntu uzerinde tahmin yapar ve cizilmis goruntuyu dondurur.
+
+    model.predict tahmin sonuclarini verir, .plot() bu sonuclari (maske + kutu)
     orijinal goruntunun uzerine cizip yeni bir goruntu olarak dondurur.
     """
-    results = model.predict(frame, conf=CONF, imgsz=IMGSZ, verbose=False)
+    results = model.predict(frame, conf=conf, imgsz=imgsz, verbose=False)
     return results[0].plot()
 
 
-def show_image(model: YOLO, image_path: Path) -> None:
+def show_image(model: Any, image_path: Path) -> None:
     """Tek bir resim icin tahmini ekranda gosterir veya dosyaya kaydeder."""
     prediction = predict_frame(model, read_image(image_path))
 
@@ -63,7 +73,7 @@ def show_image(model: YOLO, image_path: Path) -> None:
     cv2.destroyAllWindows()
 
 
-def show_video_or_webcam(model: YOLO, source) -> None:
+def show_video_or_webcam(model: Any, source: str | int) -> None:
     """Video dosyasi veya webcam icin kare kare tahmin yapar.
 
     Her kareyi okur, tahmin eder ve ya ekranda gosterir ya da (OUTPUT verilmisse)
@@ -73,7 +83,7 @@ def show_video_or_webcam(model: YOLO, source) -> None:
     if not capture.isOpened():
         raise FileNotFoundError(f"Video/webcam acilamadi: {source}")
 
-    # OUTPUT verilmisse, tahmin karelerini bir mp4 dosyasina yazmak icin yazici hazirla
+    # OUTPUT verilmisse, tahmin karelerini bir mp4 dosyasina yazmak icin yazici hazirla.
     writer = None
     if OUTPUT is not None:
         out_path = Path(OUTPUT)
@@ -88,7 +98,7 @@ def show_video_or_webcam(model: YOLO, source) -> None:
     while True:
         ok, frame = capture.read()
         if not ok:
-            break  # Video bitti veya kare okunamadi
+            break  # Video bitti veya kare okunamadi.
 
         prediction = predict_frame(model, frame)
         if writer is not None:
@@ -96,7 +106,7 @@ def show_video_or_webcam(model: YOLO, source) -> None:
         else:
             cv2.imshow(WINDOW_NAME, prediction)
             key = cv2.waitKey(1) & 0xFF
-            if key == 27 or key == ord("q"):  # ESC veya 'q' ile cik
+            if key == 27 or key == ord("q"):  # ESC veya 'q' ile cik.
                 break
 
         frame_count += 1
@@ -112,18 +122,21 @@ def show_video_or_webcam(model: YOLO, source) -> None:
 
 
 def main() -> None:
+    from ultralytics import YOLO
+
     weights = WEIGHTS.resolve()
     if not weights.exists():
         raise FileNotFoundError(f"Model bulunamadi: {weights}")
 
     model = YOLO(str(weights))
+    source = parse_source(SOURCE)
 
-    # SOURCE sadece rakamsa (orn. "0") webcam'dir; degilse dosya yoludur
-    if SOURCE.isdigit():
-        show_video_or_webcam(model, int(SOURCE))
+    # SOURCE sadece rakamsa (orn. "0") webcam'dir; degilse dosya yoludur.
+    if isinstance(source, int):
+        show_video_or_webcam(model, source)
         return
 
-    source_path = Path(SOURCE).resolve()
+    source_path = source.resolve()
     if not source_path.exists():
         raise FileNotFoundError(f"Kaynak bulunamadi: {source_path}")
 
