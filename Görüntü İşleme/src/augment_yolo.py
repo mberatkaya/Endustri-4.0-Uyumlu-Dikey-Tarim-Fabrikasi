@@ -1,6 +1,3 @@
-from __future__ import annotations
-
-import argparse
 import random
 import shutil
 from pathlib import Path
@@ -9,39 +6,33 @@ import cv2
 import numpy as np
 import yaml
 
+
+
+# AYARLAR
+
+
 ROOT = Path(__file__).resolve().parents[1]
-INPUT_ROOT = ROOT / "data" / "plantseg_yolo"
-OUTPUT_ROOT = ROOT / "data" / "plantseg_yolo_augmented"
+INPUT_ROOT = ROOT / "data" / "plantseg_yolo"             # plantseg_to_yolo.py ciktisi
+OUTPUT_ROOT = ROOT / "data" / "plantseg_yolo_augmented"  # Augmente edilmis veri seti
 
-# Hocaya anlatirken en onemli ayarlar burasi.
-# Degerleri buradan kolayca degistirebilirsin.
-IMAGE_SIZE = 640
-RANDOM_SEED = 42
+IMAGE_SIZE = 640   # Tum ciktilar bu boyuta getirilmesi gerekli cunku input olarak yolo'ya 640
+RANDOM_SEED = 42   # Sabit seed'den dolayı her calistirmada aynı augmentasyonlar uretilir, deterministlik için önemli
+VARIATIONS_PER_TRAIN_IMAGE = 3  # Her train goruntusu icin base disinda kac varyasyon uretilecek bunu belirliyoruz
 
-ROTATION_ANGLES = [-10, 10]  # Kamera acisi degisimi icin kontrollu dondurme.
-USE_HORIZONTAL_FLIP = True
-USE_VERTICAL_FLIP = True
-
-BRIGHTNESS_VALUES = [-25, 25]  # LED/golge farki icin parlaklik degisimi.
-CONTRAST_VALUES = [0.85, 1.15]  # Kontrast degisimi.
-
-USE_COLOR_JITTER = True
-HUE_SHIFT = 8  # Renk sicakligi/kamera sensor farki icin HSV hue kaydirma.
-SATURATION_SCALE = 1.15
-
-USE_MASK_PROTECTED_CROP = True
-CROP_SIZE = 560  # Problemli bolgeyi kaybetmeden 640'tan alinacak kare crop.
-CROP_PADDING = 20
-
-# Her train gorseli icin base disinda kac augmentasyon uretilecegi.
-# Komut satirindan --variations ile degistirilebilir.
-VARIATIONS_PER_TRAIN_IMAGE = 3
+HUE_SHIFT = 8           # Renk tonu kaydiriliyor
+SATURATION_SCALE = 1.15  # Doygunluk carpani
+CROP_SIZE = 560         # Crop alinacak kare boyutu Problemli bölümü kaybetmemek önemli
+CROP_PADDING = 20       # Crop kenar payi
 
 SPLITS = ("train", "val", "test")
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
 
 
+# ---------------------------------------------------------------------------
+# Dosya okuma/yazma yardimcilari
+# ---------------------------------------------------------------------------
 def read_image(path: Path) -> np.ndarray:
+    # Turkce veya ozel karakterli yollar icin np.fromfile + cv2.imdecode kullaniyoruz.
     data = np.fromfile(str(path), dtype=np.uint8)
     image = cv2.imdecode(data, cv2.IMREAD_COLOR)
     if image is None:
@@ -58,6 +49,11 @@ def write_image(path: Path, image: np.ndarray) -> None:
 
 
 def read_labels(path: Path) -> list[tuple[int, np.ndarray]]:
+    """YOLO etiket dosyasini (class_id, poligon noktalari) listesine cevirir.
+
+    Her satir: "class_id x1 y1 x2 y2 ...". Noktalar 0-1 normalize,
+    seklinde numpy dizisine konur.
+    """
     if not path.exists() or not path.read_text(encoding="utf-8").strip():
         return []
 
@@ -71,6 +67,7 @@ def read_labels(path: Path) -> list[tuple[int, np.ndarray]]:
 
 
 def write_labels(path: Path, labels: list[tuple[int, np.ndarray]]) -> None:
+    """Etiketleri tekrar YOLO formatinda yazar ve 3 noktadan az poligonlari atar."""
     path.parent.mkdir(parents=True, exist_ok=True)
     lines = []
     for class_id, points in labels:
@@ -78,14 +75,20 @@ def write_labels(path: Path, labels: list[tuple[int, np.ndarray]]) -> None:
             continue
         values = [str(class_id)]
         for x, y in points:
-            values.append(f"{float(np.clip(x, 0, 1)):.6f}")
+            values.append(f"{float(np.clip(x, 0, 1)):.6f}")  # Koordinatlari 0-1'e sabitle.
             values.append(f"{float(np.clip(y, 0, 1)):.6f}")
         lines.append(" ".join(values))
-
     path.write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
 
 
+
+# Poligon temizleme yardimcilari
+
 def polygon_area(points: np.ndarray) -> float:
+    """Poligon alanini hesaplar
+
+    Augmentasyon sonrasi cok kuculen/bozulan poligonlari elemek icin kullanilir.
+    """
     if len(points) < 3:
         return 0.0
     x = points[:, 0]
@@ -94,6 +97,7 @@ def polygon_area(points: np.ndarray) -> float:
 
 
 def remove_repeated_points(points: np.ndarray) -> np.ndarray:
+    """Art arda tekrar eden ayni noktalari ve baş==son olan noktayi temizler."""
     if len(points) == 0:
         return points
 
@@ -110,6 +114,11 @@ def remove_repeated_points(points: np.ndarray) -> np.ndarray:
 
 
 def clean_labels(labels: list[tuple[int, np.ndarray]]) -> list[tuple[int, np.ndarray]]:
+    """Donusumden sonra gecersiz hale gelen poligonlari atar.
+
+    noktalar 0-1'e kirpilir, tekrar eden noktalar atilir, en az 3 nokta ve
+    minik bir alandan buyuk olanlar saklanir
+    """
     cleaned = []
     for class_id, points in labels:
         points = remove_repeated_points(np.clip(points, 0, 1))
@@ -118,14 +127,19 @@ def clean_labels(labels: list[tuple[int, np.ndarray]]) -> list[tuple[int, np.nda
     return cleaned
 
 
+
+# Goruntu donusumleri (her biri AYNI ZAMANDA etiketleri de gunceller)
+
 def resize_to_training_size(image: np.ndarray) -> np.ndarray:
-    # YOLO egitiminde tum gorselleri ayni boyuta getiriyoruz.
+    # Tum goruntuleri ayni egitim boyutuna getir.
     return cv2.resize(image, (IMAGE_SIZE, IMAGE_SIZE), interpolation=cv2.INTER_AREA)
 
 
-def flip_labels(
-    labels: list[tuple[int, np.ndarray]], horizontal: bool, vertical: bool
-) -> list[tuple[int, np.ndarray]]:
+def flip_labels(labels, horizontal: bool, vertical: bool):
+    """Goruntu aynalaninca poligon noktalarini da aynalar.
+
+    Yatay aynalamada x -> 1 - x, dikey aynalamada y -> 1 - y (koordinatlar 0-1) arasında olmak uzere
+    """
     flipped = []
     for class_id, points in labels:
         new_points = points.copy()
@@ -137,24 +151,30 @@ def flip_labels(
     return clean_labels(flipped)
 
 
-def rotate_image_and_labels(image: np.ndarray, labels: list[tuple[int, np.ndarray]], angle: float):
+def rotate_image_and_labels(image: np.ndarray, labels, angle: float):
+    """Goruntuyu ve poligonlari merkez etrafinda 'angle' degree dondurur.
+
+    
+    1) cv2.getRotationMatrix2D ile 2x3 Affine donusum matrisi uretilir.
+    2) Goruntu warpAffine ile dondurulur bos kalan kenarlar BORDER_REFLECT_101
+       (yansitma) ile doldurulur, siyah bant bu sayede olusmaz
+    3) Poligon noktalari once piksele cevrilir, ayni matrisle carpilarak dondurulur,
+       sonra tekrar 0-1'e normalize edilir. Boylece maske goruntuyle hizali kalir
+    """
     height, width = image.shape[:2]
     center = (width / 2, height / 2)
     matrix = cv2.getRotationMatrix2D(center, angle, 1.0)
 
     rotated_image = cv2.warpAffine(
-        image,
-        matrix,
-        (width, height),
-        flags=cv2.INTER_LINEAR,
-        borderMode=cv2.BORDER_REFLECT_101,
+        image, matrix, (width, height),
+        flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT_101,
     )
 
     rotated_labels = []
     for class_id, points in labels:
         pixel_points = points * np.array([width, height], dtype=np.float32)
         ones = np.ones((len(pixel_points), 1), dtype=np.float32)
-        transformed = np.hstack([pixel_points, ones]) @ matrix.T
+        transformed = np.hstack([pixel_points, ones]) @ matrix.T  # [x y 1] . matris = dondurulmus nokta.
         transformed[:, 0] /= width
         transformed[:, 1] /= height
         rotated_labels.append((class_id, transformed.astype(np.float32)))
@@ -162,25 +182,33 @@ def rotate_image_and_labels(image: np.ndarray, labels: list[tuple[int, np.ndarra
     return rotated_image, clean_labels(rotated_labels)
 
 
-def change_brightness_contrast(
-    image: np.ndarray, brightness: int = 0, contrast: float = 1.0
-) -> np.ndarray:
-    # Poligon degismez; sadece piksel degerleri degisir.
+def change_brightness_contrast(image: np.ndarray, brightness: int = 0, contrast: float = 1.0) -> np.ndarray:
+    """Parlaklik ve kontrasti degistirir, Poligonlar degismez sadece piksel degerleri."""
     adjusted = image.astype(np.float32) * contrast + brightness
-    return np.clip(adjusted, 0, 255).astype(np.uint8)
+    return np.clip(adjusted, 0, 255).astype(np.uint8)  # Degerleri gecerli 0-255 araliginda tut.
 
 
 def color_jitter(image: np.ndarray) -> np.ndarray:
-    # BGR -> HSV ile renk tonu ve doygunlugu kontrollu degistiriyoruz.
+    """Renk tonu ve doygunlugu degistirir 
+
+    BGR'den HSV uzayina gecip H (ton) ve S (doygunluk) kanallarini oynar, sonra
+    geri BGR'ye cevirir. Hue 0-180 dongusel oldugu icin % 180 alinir.
+    """
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV).astype(np.float32)
     hsv[:, :, 0] = (hsv[:, :, 0] + HUE_SHIFT) % 180
     hsv[:, :, 1] = np.clip(hsv[:, :, 1] * SATURATION_SCALE, 0, 255)
     return cv2.cvtColor(hsv.astype(np.uint8), cv2.COLOR_HSV2BGR)
 
 
-def mask_protected_crop(
-    image: np.ndarray, labels: list[tuple[int, np.ndarray]], rng: random.Random
-):
+def mask_protected_crop(image: np.ndarray, labels, rng: random.Random):
+    """Problemli bolgeyi kaybetmeden rastgele bir kare crop alir.
+
+    1) Etiket varsa tum poligon noktalarini (bounding box) bulunur
+    2) Crop boyutu, bu kutuyu payiyla birlikte tamamen icine alacak kadar buyutulur
+    3) Crop'un sol-ust kosesi, kutuyu disarida birakmayacak araliktan rastgele
+       secilir (rng için seed burada kullanilir). Etiket yoksa merkezden crop alinir
+    4) Crop tekrar IMAGE_SIZE'a olceklenir ve poligonlar yeni kareye gore normalize edilir
+    """
     height, width = image.shape[:2]
     crop_size = min(CROP_SIZE, width, height)
 
@@ -190,7 +218,7 @@ def mask_protected_crop(
         x1, y1 = np.floor(pixel_points.min(axis=0)).astype(int)
         x2, y2 = np.ceil(pixel_points.max(axis=0)).astype(int)
 
-        # Crop boyutu problemli bolgenin tamamini icine alacak kadar buyutulur.
+        # Crop, problemli bolgenin tamamini icine alacak kadar buyutulur.
         needed_size = max(x2 - x1, y2 - y1) + (2 * CROP_PADDING)
         crop_size = int(min(max(crop_size, needed_size), width, height))
 
@@ -199,7 +227,7 @@ def mask_protected_crop(
         min_top = max(0, y2 - crop_size)
         max_top = min(y1, height - crop_size)
     else:
-        # Etiket yoksa merkezden crop almak yeterli.
+        # Etiket yoksa merkez crop yeterli.
         min_left = max_left = (width - crop_size) // 2
         min_top = max_top = (height - crop_size) // 2
 
@@ -219,100 +247,32 @@ def mask_protected_crop(
     return cropped, clean_labels(cropped_labels)
 
 
-def save_sample(
-    output_root: Path, split: str, image_path: Path, suffix: str, image: np.ndarray, labels
-) -> None:
+
+# Augmentasyon listesi
+# Her oge: (dosya_eki, fonksiyon). Fonksiyon (goruntu, etiketler, rng) alir ve
+# (yeni_goruntu, yeni_etiketler) dondurur. rng sadece crop'ta kullanilir.
+# rng.sample bu listeden secim yapar.
+
+VARIATIONS = [
+    ("rot_-10",        lambda img, lbl, rng: rotate_image_and_labels(img, lbl, -10)),
+    ("rot_+10",        lambda img, lbl, rng: rotate_image_and_labels(img, lbl, 10)),
+    ("hflip",          lambda img, lbl, rng: (cv2.flip(img, 1), flip_labels(lbl, horizontal=True, vertical=False))),
+    ("vflip",          lambda img, lbl, rng: (cv2.flip(img, 0), flip_labels(lbl, horizontal=False, vertical=True))),
+    ("brightness_-25", lambda img, lbl, rng: (change_brightness_contrast(img, brightness=-25), lbl)),
+    ("brightness_+25", lambda img, lbl, rng: (change_brightness_contrast(img, brightness=25), lbl)),
+    ("contrast_0.85",  lambda img, lbl, rng: (change_brightness_contrast(img, contrast=0.85), lbl)),
+    ("contrast_1.15",  lambda img, lbl, rng: (change_brightness_contrast(img, contrast=1.15), lbl)),
+    ("color_jitter",   lambda img, lbl, rng: (color_jitter(img), lbl)),
+    ("mask_crop",      lambda img, lbl, rng: mask_protected_crop(img, lbl, rng)),
+]
+
+
+def save_sample(output_root: Path, split: str, image_path: Path, suffix: str, image: np.ndarray, labels) -> None:
+    """Bir goruntu + etiket ciftini cikti veri setine '<isim>_<ek>' adiyla yazar."""
     output_image = output_root / "images" / split / f"{image_path.stem}_{suffix}{image_path.suffix}"
     output_label = output_root / "labels" / split / f"{image_path.stem}_{suffix}.txt"
     write_image(output_image, image)
     write_labels(output_label, labels)
-
-
-def build_variations():
-    variations = []
-
-    for angle in ROTATION_ANGLES:
-        variations.append(
-            (
-                f"rot_{angle:+g}",
-                lambda image, labels, rng, angle=angle: rotate_image_and_labels(
-                    image, labels, angle
-                ),
-            )
-        )
-
-    if USE_HORIZONTAL_FLIP:
-        variations.append(
-            (
-                "hflip",
-                lambda image, labels, rng: (cv2.flip(image, 1), flip_labels(labels, True, False)),
-            )
-        )
-
-    if USE_VERTICAL_FLIP:
-        variations.append(
-            (
-                "vflip",
-                lambda image, labels, rng: (cv2.flip(image, 0), flip_labels(labels, False, True)),
-            )
-        )
-
-    for brightness in BRIGHTNESS_VALUES:
-        variations.append(
-            (
-                f"brightness_{brightness:+d}",
-                lambda image, labels, rng, brightness=brightness: (
-                    change_brightness_contrast(image, brightness=brightness),
-                    labels,
-                ),
-            )
-        )
-
-    for contrast in CONTRAST_VALUES:
-        variations.append(
-            (
-                f"contrast_{contrast:g}",
-                lambda image, labels, rng, contrast=contrast: (
-                    change_brightness_contrast(image, contrast=contrast),
-                    labels,
-                ),
-            )
-        )
-
-    if USE_COLOR_JITTER:
-        variations.append(
-            ("color_jitter", lambda image, labels, rng: (color_jitter(image), labels))
-        )
-
-    if USE_MASK_PROTECTED_CROP:
-        variations.append(
-            ("mask_crop", lambda image, labels, rng: mask_protected_crop(image, labels, rng))
-        )
-
-    return variations
-
-
-def choose_variations(variations, count: int, rng: random.Random):
-    if count < 0:
-        raise ValueError("--variations 0 veya daha buyuk olmali.")
-    if count > len(variations):
-        raise ValueError(
-            f"--variations en fazla {len(variations)} olabilir. "
-            "Daha fazla istiyorsan ustteki augmentation ayarlarina yeni secenek ekle."
-        )
-    if count == len(variations):
-        return variations
-    return rng.sample(variations, count)
-
-
-def validate_variation_count(variations, count: int) -> None:
-    if count < 0:
-        raise ValueError("--variations 0 veya daha buyuk olmali.")
-    if count > len(variations):
-        raise ValueError(
-            f"--variations en fazla {len(variations)} olabilir. "
-            "Daha fazla istiyorsan ustteki augmentation ayarlarina yeni secenek ekle."
-        )
 
 
 def write_data_yaml(output_root: Path) -> None:
@@ -329,103 +289,55 @@ def write_data_yaml(output_root: Path) -> None:
     )
 
 
-def augment_dataset(
-    input_root: Path, output_root: Path, overwrite: bool, variations_per_train_image: int
-) -> None:
-    if (
-        input_root == output_root
-        or input_root in output_root.parents
-        or output_root in input_root.parents
-    ):
-        raise ValueError("Cikti klasoru input klasoruyle ayni yerde veya onun icinde olamaz.")
+def augment_dataset() -> None:
+    """Tum veri setini gezer. val/test'i sadece olcekler, train'i ayrica augmente eder.
 
-    if output_root.exists():
-        if not overwrite:
-            raise FileExistsError(
-                f"Cikti klasoru zaten var: {output_root}\nYeniden olusturmak icin --overwrite ekle."
-            )
-        shutil.rmtree(output_root)
+    Sabit RANDOM_SEED sayesinde her calistirmada ayni varyasyonlar secilir.
+    """
+    if OUTPUT_ROOT.exists():
+        shutil.rmtree(OUTPUT_ROOT)  # Tekrar calistirilabilir olsun diye sifirdan uret
 
     rng = random.Random(RANDOM_SEED)
-    variations = build_variations()
-    validate_variation_count(variations, variations_per_train_image)
     print(
-        f"Varyasyon ayari: train icin base + {variations_per_train_image}; "
+        f"Varyasyon ayari: train icin base + {VARIATIONS_PER_TRAIN_IMAGE}; "
         f"val/test icin sadece base. Tum ciktilar {IMAGE_SIZE}x{IMAGE_SIZE}."
     )
 
     for split in SPLITS:
-        image_dir = input_root / "images" / split
-        label_dir = input_root / "labels" / split
-        image_paths = sorted(
-            path for path in image_dir.iterdir() if path.suffix.lower() in IMAGE_EXTENSIONS
-        )
+        image_dir = INPUT_ROOT / "images" / split
+        label_dir = INPUT_ROOT / "labels" / split
+        image_paths = sorted(path for path in image_dir.iterdir() if path.suffix.lower() in IMAGE_EXTENSIONS)
 
         for image_path in image_paths:
             label_path = label_dir / f"{image_path.stem}.txt"
             image = resize_to_training_size(read_image(image_path))
             labels = read_labels(label_path)
 
-            # Orijinal ornek de 640x640 olarak cikti veri setine yazilir.
-            save_sample(output_root, split, image_path, "base", image, labels)
+            # Orijinal (sadece olceklenmis) ornek her zaman yazilir.
+            save_sample(OUTPUT_ROOT, split, image_path, "base", image, labels)
 
-            # Val/test setleri sadece olceklendirilir; augmentation sadece train icin yapilir.
+            # Augmentasyon SADECE train icin; val/test bozulmadan kalmali.
             if split != "train":
                 continue
 
-            for suffix, apply_variation in choose_variations(
-                variations, variations_per_train_image, rng
-            ):
+            # Bu goruntu icin rastgele VARIATIONS_PER_TRAIN_IMAGE adet varyasyon sec ve uygula.
+            for suffix, apply_variation in rng.sample(VARIATIONS, VARIATIONS_PER_TRAIN_IMAGE):
                 augmented_image, augmented_labels = apply_variation(image, labels, rng)
-                save_sample(
-                    output_root, split, image_path, suffix, augmented_image, augmented_labels
-                )
+                save_sample(OUTPUT_ROOT, split, image_path, suffix, augmented_image, augmented_labels)
 
         print(f"{split}: {len(image_paths)} kaynak gorsel islendi.")
 
-    write_data_yaml(output_root)
-    print(f"Augmented YOLO veri seti hazir: {output_root}")
-
-
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="YOLO segmentation veri setine kontrollu augmentation uygula."
-    )
-    parser.add_argument(
-        "--input", type=Path, default=INPUT_ROOT, help="PlantSeg -> YOLO cikti klasoru."
-    )
-    parser.add_argument(
-        "--output", type=Path, default=OUTPUT_ROOT, help="Augmented YOLO veri seti klasoru."
-    )
-    parser.add_argument(
-        "--overwrite", action="store_true", help="Cikti klasoru varsa silip yeniden olustur."
-    )
-    parser.add_argument(
-        "--variations",
-        type=int,
-        default=VARIATIONS_PER_TRAIN_IMAGE,
-        help="Her train gorseli icin base disinda uretilecek augmentation sayisi.",
-    )
-    return parser.parse_args()
+    write_data_yaml(OUTPUT_ROOT)
+    print(f"Augmented YOLO veri seti hazir: {OUTPUT_ROOT}")
 
 
 def main() -> None:
-    args = parse_args()
-    input_root = args.input.resolve()
-    output_root = args.output.resolve()
-
-    if not input_root.exists():
+    if not INPUT_ROOT.exists():
         raise FileNotFoundError(
-            f"YOLO veri seti bulunamadi: {input_root}\n"
+            f"YOLO veri seti bulunamadi: {INPUT_ROOT}\n"
             "Once PlantSeg -> YOLO donusumu icin src\\plantseg_to_yolo.py dosyasini calistir."
         )
-
-    augment_dataset(
-        input_root=input_root,
-        output_root=output_root,
-        overwrite=args.overwrite,
-        variations_per_train_image=args.variations,
-    )
+    augment_dataset()
 
 
 if __name__ == "__main__":
